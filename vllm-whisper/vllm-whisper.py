@@ -6,6 +6,8 @@ from pathlib import Path
 from librosa import resample, load
 
 import numpy as np
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 
 def chunking(audio:np.ndarray, sample_rate:int):
     """Split audio to 30 second duration chunks
@@ -19,20 +21,19 @@ def chunking(audio:np.ndarray, sample_rate:int):
     audio = np.pad(audio, (0, padding.astype(int)), 'constant', constant_values=0.0)
     return np.split(audio, len(audio) // max_duration_samples)
 
+
+
 whisper = LLM(
-        model="/models/whisper-large-v3",
+        model="/app/xisun/models/whisper-large-v3",
         limit_mm_per_prompt={"audio": 1},
         gpu_memory_utilization = 0.5,
         dtype = "float16",
         max_num_seqs = 4,
-        max_num_batched_tokens=448
-    )
-tokenizer = WhisperTokenizerFast.from_pretrained("/models/whisper-large-v3", language="en")
+        max_num_batched_tokens=448,
+        # trust_remote_code = True,
+        # hf_token = True,
 
-language = "en"
-lang_code = tokenizer.convert_tokens_to_ids(f"<|{language}|>")
-if lang_code == 50257: #"<|endoftext|>"
-    raise ValueError(f"Language code for {language} not found,error code is {lang_code}")
+    )
 
 
 audio_files = Path("samples").glob("*.wav")
@@ -54,14 +55,15 @@ for file, chunks in samples.items():
         
     prompts = [{
                 "encoder_prompt": {
-                    "prompt": "",
+                    "prompt": "<|startoftranscript|>",
                     "multi_modal_data": {
                         "audio": chunk,
                     },
                 },
                 "decoder_prompt":
-                f"<|startoftranscript|><|{lang_code}|><|transcribe|><|notimestamps|>"
-            } for chunk in chunks]
+                f"<|startoftranscript|>"
+            } for chunk in chunks ] *1
+
     print(f"File: {file}, Chunks: {len(chunks)}")
     # Create a sampling params object.
     sampling_params = SamplingParams(
@@ -93,3 +95,5 @@ for file, chunks in samples.items():
     print("Duration:", duration)
     print("RPS:", len(prompt) / duration)
     print("Generated text:", generated)
+
+    #break #only use onaudio
