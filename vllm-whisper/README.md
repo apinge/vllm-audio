@@ -8,3 +8,15 @@ docker run -it --rm  --name whisper --ipc=host --network=host --group-add render
 pip install vllm[audio]
 
 ```
+
+If you want translate task you can specify the task
+```python
+    prompts = [
+    {
+        "prompt":
+        "<|startoftranscript|><|ar|><|translate|><|notimestamps|>",
+        "multi_modal_data": {
+            "audio": chunk, # Audio Chunk
+        },
+    },
+```
