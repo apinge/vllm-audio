@@ -5,7 +5,7 @@ from transformers import WhisperTokenizerFast
 from pathlib import Path
 from librosa import resample, load
 import numpy as np
-
+import os
 
 def chunking(audio: np.ndarray, sample_rate: int):
     """Split audio to 30 second duration chunks
@@ -19,12 +19,9 @@ def chunking(audio: np.ndarray, sample_rate: int):
     audio = np.pad(audio, (0, padding.astype(int)), "constant", constant_values=0.0)
     return np.split(audio, len(audio) // max_duration_samples)
 
-
-tokenizer = WhisperTokenizerFast.from_pretrained(
-    "/models/whisper-large-v3", language="en"
-)
 whisper = LLM(
-    model="/models/whisper-large-v3",
+    #model="/models/whisper-large-v3",
+    model = os.environ["MODEL_PATH"],
     limit_mm_per_prompt={"audio": 1},
     gpu_memory_utilization=0.8,
     dtype="float16",
