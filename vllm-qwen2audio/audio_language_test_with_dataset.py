@@ -25,20 +25,24 @@ question_per_audio_count = {
 
 
 # ============== real audio data folder ==============
-AUDIO_FOLDER = "/root/workspace/tts-root/TTS/tests/data/ljspeech/wavs" 
-
+#AUDIO_FOLDER = "/root/workspace/tts-root/TTS/tests/data/ljspeech/wavs" #32
+AUDIO_FOLDER = "/root/workspace/audio_dataset/LibriSpeech/dev-clean" #2703
 import os
 import glob
 import librosa
 
-def load_audio_folder(folder_path, sr=None):
-    """Load all *.wav files, return [(waveform numpy array, sample_rate), ...]"""
+def load_audio_folder(folder_path, sr=None, exts=("wav", "flac")):
+    """Load all *.wav or *.flac files, return [(waveform numpy array, sample_rate), ...]"""
     audio_items = []
-    for wav_path in glob.glob(os.path.join(folder_path, "*.wav")):
-        audio, sample_rate = librosa.load(wav_path, sr=sr)  # sr=None 表示保留原采样率
-        audio_items.append((audio, sample_rate))
+    for ext in exts:
+        for file_path in glob.glob(os.path.join(folder_path, "**", f"*.{ext}"), recursive=True):
+            try:
+                audio, sample_rate = librosa.load(file_path, sr=sr) # sr=None uses the native sampling rate
+                audio_items.append((audio, sample_rate))
+            except Exception as e:
+                print(f"Load {file_path} failure: {e}")
+    print(f"load {len(audio_items)} files")
     return audio_items
-
 
 # Qwen2-Audio
 def get_qwen2_audio_prompts(question: str, audio_count: int):
@@ -94,8 +98,9 @@ def main(args):
     model_name = "/models/Qwen2-Audio-7B-Instruct"
     llm = LLM(model=model_name,
               max_model_len=4096,
-              max_num_seqs=16,
-              limit_mm_per_prompt={"audio": audio_count})
+              max_num_seqs=64,
+              limit_mm_per_prompt={"audio": audio_count},
+              tensor_parallel_size=2)
 
 
     
@@ -108,21 +113,15 @@ def main(args):
                                      stop_token_ids=stop_token_ids)
 
 
-    # if args.num_prompts > 1:
-    #     # Batch inference
-    #     import copy
-    #     inputs = [copy.deepcopy(base_input) for _ in range(args.num_prompts)]
-    # else:
-    #     inputs = base_input
     import time
     start = time.time()
     outputs = llm.generate(inputs, sampling_params=sampling_params)
     duration = time.time() - start
     print("Duration:", duration)
     print("RPS:", args.num_prompts / duration)
-    for o in outputs:
-        generated_text = o.outputs[0].text
-        print(generated_text)
+    # for o in outputs:
+    #     generated_text = o.outputs[0].text
+    #     print(generated_text)
 
 
 if __name__ == "__main__":
@@ -137,7 +136,7 @@ if __name__ == "__main__":
                         help='Huggingface "model_type".')
     parser.add_argument('--num-prompts',
                         type=int,
-                        default=32,
+                        default=512,
                         help='Number of prompts to run.')
     parser.add_argument("--num-audios",
                         type=int,
