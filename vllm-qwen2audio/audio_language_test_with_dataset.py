@@ -81,7 +81,8 @@ def main(args):
     if len(all_audios) < args.num_prompts:
         raise ValueError(f"Insufficient number of audio files: required at least{audio_count}, actual len{len(all_audios)}")
     inputs = []
-    for i in range(args.num_prompts): 
+    warm_up_steps = 8
+    for i in range(args.num_prompts+warm_up_steps): 
 
         mm_data = {
             "audio": [
@@ -100,7 +101,10 @@ def main(args):
               max_model_len=4096,
               max_num_seqs=64,
               limit_mm_per_prompt={"audio": audio_count},
-              tensor_parallel_size=2)
+              tensor_parallel_size=1,
+              compilation_config = {"full_cuda_graph":True},
+              enable_prefix_caching=False, # set this to ensure accurate measurement
+              )
 
 
     
@@ -112,16 +116,26 @@ def main(args):
                                      max_tokens=32,
                                      stop_token_ids=stop_token_ids)
 
+    # warm up
+    _outputs = llm.generate(inputs[:warm_up_steps], sampling_params=sampling_params)
+    for o in _outputs:
+        generated_text = o.outputs[0].text
+        print(generated_text)
+    print("Warm up steps completed.")
 
+    assert args.num_prompts == len(inputs[warm_up_steps:])
     import time
     start = time.time()
-    outputs = llm.generate(inputs, sampling_params=sampling_params)
+    outputs = llm.generate(inputs[warm_up_steps:], sampling_params=sampling_params)
     duration = time.time() - start
     print("Duration:", duration)
     print("RPS:", args.num_prompts / duration)
-    # for o in outputs:
-    #     generated_text = o.outputs[0].text
-    #     print(generated_text)
+    total_tokens = 0
+    for o in outputs:
+        generated_text = o.outputs[0].text
+        total_tokens += len(generated_text.split())
+        #print(generated_text)
+    print(f"Total tokens, {total_tokens}")
 
 
 if __name__ == "__main__":
