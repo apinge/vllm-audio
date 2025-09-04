@@ -41,11 +41,11 @@ text example
 "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\nAudio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\nWhat's that sound?<|im_end|>\n<|im_start|>assistant\nIt is the sound of glass shattering.<|im_end|>\n<|im_start|>user\nWhat can you do when you hear that?<|im_end|>\n<|im_start|>assistant\nStay alert and cautious, and check if anyone is hurt or if there is any damage to property.<|im_end|>\n<|im_start|>user\nAudio 2: <|audio_bos|><|AUDIO|><|audio_eos|>\nWhat does the person say?<|im_end|>\n<|im_start|>assistant\n"
 
 """
-inputs = processor(text=text, audios=audios, return_tensors="pt", padding=True).to(device)
+inputs = processor(text=text, audio=audios, return_tensors="pt", padding=True).to(device)
 inputs.input_ids = inputs.input_ids
 
 
-generate_ids = model.generate(**inputs, max_length=256)
+generate_ids = model.generate(**inputs, max_length=1024)
 generate_ids = generate_ids[:, inputs.input_ids.size(1):]
 
 response = processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
