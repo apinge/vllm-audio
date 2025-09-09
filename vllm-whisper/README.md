@@ -20,3 +20,11 @@ If you want translate task you can specify the task
         },
     },
 ```
+
+# How to Run using VLLM Benchmark
+```bash
+CUDA_VISIBLE_DEVICES=7 vllm serve "/models/whisper-large-v3" --no-enable-chunked-prefill --disable-log-requests --host 0.0.0.0 --port 20010
+ 
+python benchmarks/benchmark_serving.py --model "/models/whisper-large-v3" --backend openai-audio --dataset-name hf  --dataset-path edinburghcstr/ami --hf-subset ihm --endpoint /v1/audio/transcriptions --trust_remote_code  --num-prompts 16 --max-concurrency 4 --host 0.0.0.0 --port 20010
+
+```
