@@ -16,6 +16,7 @@ import librosa
 from typing import List, Tuple, Dict, Any
 
 
+
 def prepare_audio_inputs_for_vllm(audio_folder, processor, use_audio_in_video=False):
     filenames = []
     inputs_list = []
@@ -23,8 +24,15 @@ def prepare_audio_inputs_for_vllm(audio_folder, processor, use_audio_in_video=Fa
     for filename in sorted(os.listdir(audio_folder)):
         if not filename.lower().endswith(".wav"):
             continue
+     
+        
         file_path = os.path.join(audio_folder, filename)
-
+        y, sr = librosa.load(file_path, sr=None)
+        duration = len(y) / sr
+        if duration>30:
+            print(f"{file_path} audio length: {duration:.2f} second")
+        else:
+            continue # skip small audio
         messages = [
             {
                 "role": "user",
@@ -66,7 +74,6 @@ if __name__ == '__main__':
         processor=processor,
         use_audio_in_video=False
     )
-
     if len(inputs_list)>512:
         inputs_list = inputs_list[:512]
         print(f"[WARNNING] Only take {len(inputs_list)} prompts")
@@ -77,7 +84,7 @@ if __name__ == '__main__':
         gpu_memory_utilization=0.95,
         tensor_parallel_size=torch.cuda.device_count(),
         limit_mm_per_prompt={"audio": 1},
-        max_num_seqs=128, # Improve GPU utilization and take into account batches captured by cudagrah
+        max_num_seqs=8, #only 8
         max_model_len=32768,
         seed=1234,
     )
@@ -92,10 +99,10 @@ if __name__ == '__main__':
     outputs = llm.generate(inputs_list, sampling_params=sampling_params)
     for filename, req_output in zip(filenames, outputs):
         completion_output = req_output.outputs[0]
-        # print(f"\n=== Output for {filename} ===")
-        # print(completion_output.text)
+        print(f"\n=== Output for {filename} ===")
+        print(completion_output.text)
         m = req_output.metrics
-        #print(f"TTFT(end-to-end): {m.first_token_time - m.arrival_time:.3f} second")
+        print(f"TTFT(end-to-end): {m.first_token_time - m.arrival_time:.3f} second")
         print(
             f"TTFT(model-only): {m.first_token_time - m.first_scheduled_time:.3f} second"
         )

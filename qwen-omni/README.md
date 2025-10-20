@@ -34,6 +34,9 @@ python qwen_omni_v0_readfile.py
 # run multiple audio from a folder
 python qwen_omni_v0_folder.py
 
+# test audio longer than 30s 
+python qwen_omni_v0_folder_test_long_audio.py
+
 ```
 
 Other usage please refer to https://huggingface.co/Qwen/Qwen3-Omni-30B-A3B-Captioner#vllm-usage
