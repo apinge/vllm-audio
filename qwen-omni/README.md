@@ -11,7 +11,7 @@ pip install --upgrade numba \
     scipy \
     huggingface-hub[cli,hf_transfer] \
     setuptools_scm
-pip uninstall -y opencv-python-headlesspip  -
+pip uninstall -y opencv-python-headless
 pip install "numpy<2"
 pip install -r requirements/rocm.txt
 
