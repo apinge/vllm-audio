@@ -127,7 +127,7 @@ def main():
     from vllm.assets.audio import AudioAsset
     from librosa import resample, load
     sr = 16000
-    num_prompts = 256
+    num_prompts = 1
     audio = Audio(sampling_rate=sr)
 
     """
