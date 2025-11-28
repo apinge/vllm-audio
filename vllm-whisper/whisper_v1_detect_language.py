@@ -162,10 +162,8 @@ def main():
             audio_arr (np.float32)
             sample_rate
         """
-        # sr=None = 用音频原始采样率，不重采样
         audio_arr, sample_rate = librosa.load(audio_file, sr = target_sr)
 
-        # librosa 默认返回 float32 numpy
         return audio_arr.astype(np.float32), sample_rate
 
 
@@ -231,8 +229,7 @@ def main():
     for output in outputs:
         generated_text = output.outputs[0].text
         print(f"Generated text: {generated_text!r}")
-        #print(output)
-        #break
+
 
 
 
