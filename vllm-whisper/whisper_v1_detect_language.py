@@ -9,7 +9,8 @@ os.environ['VLLM_USE_ROCM_AITER'] = '1'
 #os.environ['VLLM_ROCM_CUSTOM_PAGED_ATTN'] = '1'
 #os.environ['VLLM_ATTENTION_BACKEND']='ROCM_AITER_FA' 
 os.environ['VLLM_ATTENTION_BACKEND']='ROCM_AITER_UNIFIED_ATTN' 
-#from torch.multiprocessing import mp
+
+use_language_detect = os.getenv("USE_LANGUAGE_DETECT", default="") != ""
 
 
 # VLLM_USE
@@ -144,7 +145,7 @@ def main():
         
     )
     id2token = LANG_ID_TO_LANG_TOKEN
-    sampling_params = SamplingParams(
+    warmup_sampling_params = SamplingParams(
         temperature=0,
         top_p=1.0,
         max_tokens=1,
@@ -154,58 +155,74 @@ def main():
     """
     warm up
     """
-    PROMPTS = [{
-            "prompt": "<|startoftranscript|>",
+
+    def load_audio(audio_file, target_sr=None):
+        import librosa
+        """
+            audio_arr (np.float32)
+            sample_rate
+        """
+        # sr=None = 用音频原始采样率，不重采样
+        audio_arr, sample_rate = librosa.load(audio_file, sr = target_sr)
+
+        # librosa 默认返回 float32 numpy
+        return audio_arr.astype(np.float32), sample_rate
+
+
+
+    chunks = []
+    audio_file = "commonvoice_22_de_test.wav"
+    audio_arr, sample_rate = load_audio(audio_file)
+
+    chunks.append((audio_arr, sample_rate))
+    warmup_promps = []
+    for chunk in chunks:
+        warmup_promps.append(
+            {
+            "prompt": f"<|startoftranscript|>",
             "multi_modal_data": {
-                "audio": AudioAsset("mary_had_lamb").audio_and_sample_rate,
+                "audio": chunk,
             },
-        },
-        {  # Test explicit encoder/decoder prompt
-            "encoder_prompt": {
-                "prompt": "",
-                "multi_modal_data": {
-                    "audio": AudioAsset("winning_call").audio_and_sample_rate,
-                },
-            },
-            "decoder_prompt": "<|startoftranscript|>",
         }
-    ]
+        ) 
 
 
-
-
-    _ = llm.generate(PROMPTS, sampling_params)
+    _ = llm.generate(warmup_promps,  warmup_sampling_params)
     # _ = llm.beam_search(PROMPTS[0], params)
-    
+    language_token_ids = []
     for output in _:
         generated_text = output.outputs[0].text
-        print(f"Generated text: {generated_text!r}")
+        print(f"language token: {output.outputs[0].token_ids[0]}, language type {generated_text!r}")
+        language_token_ids.append(output.outputs[0].token_ids[0])
     print("[INFO] warm up ok")
 
     """
     load audio
     """
-    audio_file = "/root/workspace/fast-whisper/out.wav"
-    audio_arr, sample_rate = load(audio_file, sr=None)
-    if sample_rate != sr:
-        audio_arr = resample(
-            np.array(audio_arr, dtype=np.float32),
-            orig_sr=sample_rate,
-            target_sr=16000
-        )
-        print(f"File: {audio_file}, Sample rate: {sample_rate}, "
-              f"Audio shape: {audio_arr.shape}, Duration: {audio_arr.shape[0] / sample_rate:.2f} seconds")
 
-    chunk = (audio_arr, sr)
 
-    prompts = [
-        {
-            "prompt": "<|startoftranscript|>",
-            "multi_modal_data": {
-                "audio": chunk,
-            },
-        },
-    ] * num_prompts
+    prompts = []
+    for language_id, chunk in zip(language_token_ids,chunks):
+        if use_language_detect:
+            prompts.append({
+                    "prompt": f"<|startoftranscript|>{LANG_ID_TO_LANG_TOKEN[language_id]}<|transcribe|><|notimestamps|>",
+                    "multi_modal_data": {
+                        "audio": chunk,
+                    },
+                })
+        else:
+            prompts.append({
+                    "prompt": "<|startoftranscript|>",
+                    "multi_modal_data": {
+                        "audio": chunk,
+                    },
+                })
+    print(prompts)
+    sampling_params = SamplingParams(
+        temperature=0,
+        top_p=1.0,
+        max_tokens=500,
+    )
 
     start = time.time()
     outputs = llm.generate(prompts, sampling_params)
@@ -215,14 +232,14 @@ def main():
         generated_text = output.outputs[0].text
         print(f"Generated text: {generated_text!r}")
         #print(output)
-        break
+        #break
 
-    print(f"len(prompts):{len(prompts)}")
-    print("Duration:", duration)
-    print("RPS:", len(prompts) / duration)
+
+
+    # print(f"len(prompts):{len(prompts)}")
+    # print("Duration:", duration)
+    # print("RPS:", len(prompts) / duration)
 
 
 if __name__ == "__main__":
-    #freeze_support()  
-    #mp.set_start_method("fork", force=True)
     main()
