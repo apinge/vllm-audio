@@ -68,7 +68,7 @@ text_content = {
 messages = [
     {
         "role": "user",
-       # "content": image_content + [audio_content] ,
+        "content": image_content + [audio_content] ,
        # "content":  [audio_content] + [text_content], # text asr
     }
 ]
