@@ -69,8 +69,8 @@ audio_content = {
 
 text_content = {
     "type": "text",
-    # "text": "Describe each image in chinese separately."
-    "text": "Describe what you have heard in audio.",
+     "text": "Describe each image in chinese separately."
+    #"text": "Describe what you have heard in audio.", # text asr
 }
 
 messages = [
