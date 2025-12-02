@@ -80,6 +80,8 @@ response = client.chat.completions.create(
     messages=messages,
     temperature=0,
     max_tokens=2048,
+    stream=True,
 )
-
-print(response.choices[0].message.content)
+for chunk in response:
+    if chunk.choices[0].delta.content is not None:
+        print(chunk.choices[0].delta.content, end="")
